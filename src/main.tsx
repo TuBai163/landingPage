@@ -27,7 +27,7 @@ type LetterState = "closed" | "open";
 type Language = "en" | "zh";
 type FieldName = "email" | "plushieName" | "plushieStory";
 type FormValues = Record<FieldName, string>;
-type FormErrors = Partial<Record<FieldName | "form", string>>;
+type FormErrors = Partial<Record<FieldName, string>>;
 type SubmitStatus = "idle" | "success";
 
 const submittedEmails = new Set<string>();
@@ -259,6 +259,7 @@ function App() {
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>("idle");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
   const heroSectionRef = useRef<HTMLElement | null>(null);
   const featureOneSectionRef = useRef<HTMLElement | null>(null);
   const featureTwoSectionRef = useRef<HTMLElement | null>(null);
@@ -283,6 +284,7 @@ function App() {
   const openWaitlist = () => {
     setSubmitStatus("idle");
     setFormErrors({});
+    setToastMessage("");
     setIsWaitlistOpen(true);
   };
 
@@ -330,11 +332,12 @@ function App() {
     setIsWaitlistOpen(false);
     setIsSubmitting(false);
     setFormErrors({});
+    setToastMessage("");
   };
 
   const updateField = (field: FieldName, value: string) => {
     setFormValues((current) => ({ ...current, [field]: value }));
-    setFormErrors((current) => ({ ...current, [field]: undefined, form: undefined }));
+    setFormErrors((current) => ({ ...current, [field]: undefined }));
   };
 
   const validate = () => {
@@ -400,14 +403,27 @@ function App() {
       setSubmitStatus("success");
       setFormErrors({});
     } catch {
-      setFormErrors((current) => ({
-        ...current,
-        form: language === "zh" ? "Submit failed. Please try again." : "The letter did not go out. Please try again."
-      }));
+      setToastMessage(
+        language === "zh" ? "提交失败，请稍后再试。" : "Submission failed. Please try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (!toastMessage) {
+      return;
+    }
+
+    const toastTimer = window.setTimeout(() => {
+      setToastMessage("");
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(toastTimer);
+    };
+  }, [toastMessage]);
 
   useEffect(() => {
     const handleWheel = (event: WheelEvent) => {
@@ -773,13 +789,27 @@ function App() {
                   </div>
 
                   <p className="privacy-note">{text.privacy}</p>
-                  {formErrors.form && <p className="form-error">{formErrors.form}</p>}
                   <button className="submit-button" type="submit" disabled={isSubmitting} lang={language}>
                     {isSubmitting ? text.submitting : text.submit}
                   </button>
                 </>
               )}
             </motion.form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            className="toast-message"
+            role="status"
+            aria-live="polite"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.18 }}
+          >
+            {toastMessage}
           </motion.div>
         )}
       </AnimatePresence>
