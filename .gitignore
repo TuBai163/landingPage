@@ -1,0 +1,8 @@
+node_modules/
+dist/
+figma-screenshot.png
+.env
+.env.*
+vite.log
+vite.err.log
+vite.pid
