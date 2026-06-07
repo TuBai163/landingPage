@@ -5,6 +5,15 @@ const JSON_HEADERS = {
 
 const MAX_PLUSHIE_NAME_LENGTH = 80;
 const MAX_STORY_LENGTH = 1000;
+const COMMON_EMAIL_DOMAIN_TYPOS = new Set([
+  "qq.co",
+  "gmail.co",
+  "hotmail.co",
+  "outlook.co",
+  "icloud.co",
+  "163.co",
+  "126.co"
+]);
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -47,8 +56,9 @@ function normalizePayload(data) {
 
 function validatePayload(payload) {
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailDomain = payload.email.split("@")[1] ?? "";
 
-  if (!emailPattern.test(payload.email)) {
+  if (!emailPattern.test(payload.email) || COMMON_EMAIL_DOMAIN_TYPOS.has(emailDomain)) {
     return "invalid_email";
   }
 
@@ -92,14 +102,50 @@ async function getTenantAccessToken(env) {
   const result = await response.json().catch(() => ({}));
 
   if (!response.ok || result.code !== 0 || !result.tenant_access_token) {
-    throw new Error(`feishu_auth_failed:${result.code ?? response.status}`);
+    throw new FeishuError("feishu_auth_failed", result.code ?? response.status, result.msg ?? result.message ?? "");
   }
 
   return result.tenant_access_token;
 }
 
-async function createBitableRecord(env, token, fields) {
-  const appToken = encodeURIComponent(readEnv(env, "FEISHU_APP_TOKEN"));
+class FeishuError extends Error {
+  constructor(reason, code, message) {
+    super(reason);
+    this.reason = reason;
+    this.code = code;
+    this.feishuMessage = message;
+  }
+}
+
+async function resolveBitableAppToken(env, token) {
+  const configuredToken = readEnv(env, "FEISHU_APP_TOKEN");
+  const response = await fetch(
+    `https://open.feishu.cn/open-apis/wiki/v2/spaces/get_node?token=${encodeURIComponent(configuredToken)}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok || result.code !== 0) {
+    return configuredToken;
+  }
+
+  const node = result.data?.node;
+
+  if (node?.obj_type === "bitable" && node?.obj_token) {
+    return node.obj_token;
+  }
+
+  return configuredToken;
+}
+
+async function createBitableRecord(env, token, appTokenValue, fields) {
+  const appToken = encodeURIComponent(appTokenValue);
   const tableId = encodeURIComponent(readEnv(env, "FEISHU_TABLE_ID"));
   const response = await fetch(`https://open.feishu.cn/open-apis/bitable/v1/apps/${appToken}/tables/${tableId}/records`, {
     method: "POST",
@@ -113,7 +159,7 @@ async function createBitableRecord(env, token, fields) {
   const result = await response.json().catch(() => ({}));
 
   if (!response.ok || result.code !== 0) {
-    throw new Error(`feishu_record_failed:${result.code ?? response.status}`);
+    throw new FeishuError("feishu_record_failed", result.code ?? response.status, result.msg ?? result.message ?? "");
   }
 
   return result.data?.record;
@@ -159,11 +205,24 @@ async function handlePost(context) {
 
   try {
     const token = await getTenantAccessToken(env);
-    const record = await createBitableRecord(env, token, fields);
+    const appToken = await resolveBitableAppToken(env, token);
+    const record = await createBitableRecord(env, token, appToken, fields);
 
     return json({ ok: true, recordId: record?.record_id ?? null });
   } catch (error) {
     console.error(error);
+    if (error instanceof FeishuError) {
+      return json(
+        {
+          ok: false,
+          error: error.reason,
+          code: error.code,
+          message: error.feishuMessage
+        },
+        502
+      );
+    }
+
     return json({ ok: false, error: "feishu_write_failed" }, 502);
   }
 }

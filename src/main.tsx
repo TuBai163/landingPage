@@ -31,6 +31,12 @@ type FormErrors = Partial<Record<FieldName | "form", string>>;
 type SubmitStatus = "idle" | "success";
 
 const submittedEmails = new Set<string>();
+const commonEmailDomainTypos = new Set(["qq.co", "gmail.co", "hotmail.co", "outlook.co", "icloud.co", "163.co", "126.co"]);
+
+const hasCommonEmailDomainTypo = (email: string) => {
+  const domain = email.split("@")[1] ?? "";
+  return commonEmailDomainTypos.has(domain);
+};
 
 const copy = {
   en: {
@@ -337,7 +343,7 @@ function App() {
 
     if (!normalizedEmail) {
       nextErrors.email = text.errors.emailRequired;
-    } else if (!emailPattern.test(normalizedEmail)) {
+    } else if (!emailPattern.test(normalizedEmail) || hasCommonEmailDomainTypo(normalizedEmail)) {
       nextErrors.email = text.errors.emailInvalid;
     }
 
