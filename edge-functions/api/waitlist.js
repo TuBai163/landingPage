@@ -165,6 +165,43 @@ async function createBitableRecord(env, token, appTokenValue, fields) {
   return result.data?.record;
 }
 
+async function findBitableRecordByEmail(env, token, appTokenValue, email) {
+  const appToken = encodeURIComponent(appTokenValue);
+  const tableId = encodeURIComponent(readEnv(env, "FEISHU_TABLE_ID"));
+  const emailField = fieldName(env, "FEISHU_FIELD_EMAIL", "Email");
+  const response = await fetch(
+    `https://open.feishu.cn/open-apis/bitable/v1/apps/${appToken}/tables/${tableId}/records/search`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json; charset=utf-8"
+      },
+      body: JSON.stringify({
+        page_size: 1,
+        filter: {
+          conjunction: "and",
+          conditions: [
+            {
+              field_name: emailField,
+              operator: "is",
+              value: [email]
+            }
+          ]
+        }
+      })
+    }
+  );
+
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok || result.code !== 0) {
+    throw new FeishuError("feishu_lookup_failed", result.code ?? response.status, result.msg ?? result.message ?? "");
+  }
+
+  return result.data?.items?.[0] ?? null;
+}
+
 async function handlePost(context) {
   const { request, env } = context;
   const missingEnv = requireEnv(env);
@@ -206,6 +243,12 @@ async function handlePost(context) {
   try {
     const token = await getTenantAccessToken(env);
     const appToken = await resolveBitableAppToken(env, token);
+    const existingRecord = await findBitableRecordByEmail(env, token, appToken, payload.email);
+
+    if (existingRecord) {
+      return json({ ok: false, error: "duplicate_email" }, 409);
+    }
+
     const record = await createBitableRecord(env, token, appToken, fields);
 
     return json({ ok: true, recordId: record?.record_id ?? null });

@@ -18,6 +18,7 @@ import featureTwoImageBottom from "../img/功能介绍4-2/img_2.png";
 import closeIcon from "../img/第二屏_table/btn_关闭 1.png";
 import bookIcon from "../img/第二屏_table/icon_书 1.png";
 import plushieIcon from "../img/第二屏_table/icon_玩偶小熊 1.png";
+import successImage from "../img/第二屏_table/img_1.png";
 import mailIcon from "../img/第二屏_table/邮箱 1.png";
 import productBg from "../img/第二屏_产品介绍/bg_start.png";
 import productImage from "../img/第二屏_产品介绍/product.png";
@@ -32,6 +33,8 @@ type SubmitStatus = "idle" | "success";
 
 const submittedEmails = new Set<string>();
 const commonEmailDomainTypos = new Set(["qq.co", "gmail.co", "hotmail.co", "outlook.co", "icloud.co", "163.co", "126.co"]);
+const maxPlushieNameLength = 80;
+const maxStoryLength = 1000;
 
 const hasCommonEmailDomainTypo = (email: string) => {
   const domain = email.split("@")[1] ?? "";
@@ -52,7 +55,7 @@ const copy = {
         ]
       },
       {
-        title: "It truly sees you.",
+        title: "It truly sees you",
         body: [
           "Sometimes you say “I’m fine,” but your voice sounds sad.",
           "Sometimes you don’t say anything — you just hold it for a long time.",
@@ -71,7 +74,7 @@ const copy = {
         ]
       },
       {
-        title: "Let dolls meet, and people connect gently.",
+        title: "Let dolls meet, and people connect gently",
         body: [
           "Every doll carries the unique traces of time spent with its owner.",
           "In the DollVerse cloud world, your doll grows its own life and meets other doll friends.",
@@ -91,10 +94,10 @@ const copy = {
     storyPlaceholder: "Share a little story about you and your doll…",
     submit: "Submit",
     submitting: "Sending",
-    successTitle: "You are on the list.",
-    successBody: "The little mailbox is glowing now. We will write to you and your plushie when the world is ready.",
+    successTitle: "Subscription Confirmed",
+    successBody: "We'll reach out to you and your doll when the time comes.",
     privacy:
-      "We collect your email, your plushie's name, optional story, and country-level visit information to manage the waitlist and understand early interest.",
+      "We record the information above and country-level visit information to manage the waitlist and understand early user distribution.",
     errors: {
       emailRequired: "Please enter your email.",
       emailInvalid: "This email does not look finished yet.",
@@ -164,7 +167,7 @@ const copy = {
         body: [
           "每一只玩偶，都带着和主人相处过的独特痕迹。",
           "在DollVerse云端世界，你的玩偶生长出自己的生活，",
-          "还会遇到好朋友！",
+          "还会遇到好朋偶！",
           "它们会相遇、发生故事，并把见闻带回给你。",
           "人和人的连接，可以从两个玩偶之间的交集开始。"
         ]
@@ -182,9 +185,9 @@ const copy = {
     storyPlaceholder: "分享你和玩偶之间的故事吧......",
     submit: "提交",
     submitting: "提交中",
-    successTitle: "订阅成功。",
-    successBody: "小信箱已经亮起来了。等世界准备好，我们会写信给你和你的玩偶。",
-    privacy: "我们会记录你的邮箱、玩偶名称、你选填的小故事和国家级别的访问信息，用于管理等候名单和了解早期用户分布。",
+    successTitle: "订阅成功",
+    successBody: "当世界准备好，我们会写信给你和你的玩偶。",
+    privacy: "我们记录上述信息和国家级别的访问信息，用于管理等候名单和了解早期用户分布。",
     errors: {
       emailRequired: "请输入你的邮箱。",
       emailInvalid: "这个邮箱看起来还没有写好。",
@@ -267,6 +270,7 @@ function App() {
   const activeSectionRef = useRef(0);
   const scrollLockRef = useRef(false);
   const touchStartYRef = useRef<number | null>(null);
+  const modalTouchYRef = useRef<number | null>(null);
 
   const isOpen = letterState === "open";
   const text = copy[language];
@@ -283,8 +287,10 @@ function App() {
 
   const openWaitlist = () => {
     setSubmitStatus("idle");
+    setFormValues(defaultFormValues);
     setFormErrors({});
     setToastMessage("");
+    setIsSubmitting(false);
     setIsWaitlistOpen(true);
   };
 
@@ -340,6 +346,59 @@ function App() {
     setFormErrors((current) => ({ ...current, [field]: undefined }));
   };
 
+  const fieldErrorText = (field: FieldName, error: string) => {
+    if (field === "email") {
+      return error === "duplicate" ? text.errors.duplicate : text.errors.emailInvalid;
+    }
+
+    if (field === "plushieName") {
+      return error === "too_long"
+        ? language === "zh"
+          ? "玩偶姓名太长了，请稍微短一点。"
+          : "The doll's name is too long."
+        : text.errors.plushieRequired;
+    }
+
+    return language === "zh" ? "故事太长了，请稍微短一点。" : "The story is too long.";
+  };
+
+  const showFieldError = (field: FieldName, error: string) => {
+    setFormErrors((current) => ({
+      ...current,
+      [field]: fieldErrorText(field, error)
+    }));
+  };
+
+  const handleServerValidationError = (error: string) => {
+    if (error === "invalid_email") {
+      showFieldError("email", "invalid");
+      return true;
+    }
+
+    if (error === "duplicate_email") {
+      submittedEmails.add(normalizedEmail);
+      showFieldError("email", "duplicate");
+      return true;
+    }
+
+    if (error === "missing_plushie_name") {
+      showFieldError("plushieName", "missing");
+      return true;
+    }
+
+    if (error === "plushie_name_too_long") {
+      showFieldError("plushieName", "too_long");
+      return true;
+    }
+
+    if (error === "story_too_long") {
+      showFieldError("plushieStory", "too_long");
+      return true;
+    }
+
+    return false;
+  };
+
   const validate = () => {
     const nextErrors: FormErrors = {};
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -352,10 +411,16 @@ function App() {
 
     if (!formValues.plushieName.trim()) {
       nextErrors.plushieName = text.errors.plushieRequired;
+    } else if (formValues.plushieName.trim().length > maxPlushieNameLength) {
+      nextErrors.plushieName = fieldErrorText("plushieName", "too_long");
+    }
+
+    if (formValues.plushieStory.trim().length > maxStoryLength) {
+      nextErrors.plushieStory = fieldErrorText("plushieStory", "too_long");
     }
 
     if (submittedEmails.has(normalizedEmail)) {
-      nextErrors.form = text.errors.duplicate;
+      nextErrors.email = text.errors.duplicate;
     }
 
     setFormErrors(nextErrors);
@@ -396,6 +461,10 @@ function App() {
       const result = await response.json().catch(() => ({ ok: false }));
 
       if (!response.ok || !result.ok) {
+        if (handleServerValidationError(result.error ?? "")) {
+          return;
+        }
+
         throw new Error(result.error ?? "submit_failed");
       }
 
@@ -426,8 +495,45 @@ function App() {
   }, [toastMessage]);
 
   useEffect(() => {
+    if (!isWaitlistOpen) {
+      return;
+    }
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, [isWaitlistOpen]);
+
+  useEffect(() => {
+    const canScrollTarget = (target: EventTarget | null, deltaY: number) => {
+      const element = target instanceof Element ? target.closest("#plushieStory") : null;
+
+      if (!(element instanceof HTMLTextAreaElement)) {
+        return false;
+      }
+
+      const canScrollUp = element.scrollTop > 0;
+      const canScrollDown = element.scrollTop + element.clientHeight < element.scrollHeight - 1;
+
+      return deltaY < 0 ? canScrollUp : canScrollDown;
+    };
+
     const handleWheel = (event: WheelEvent) => {
-      if (isWaitlistOpen || Math.abs(event.deltaY) < 14) {
+      if (isWaitlistOpen) {
+        if (!canScrollTarget(event.target, event.deltaY)) {
+          event.preventDefault();
+        }
+
+        return;
+      }
+
+      if (Math.abs(event.deltaY) < 14) {
         return;
       }
 
@@ -437,6 +543,7 @@ function App() {
 
     const handleTouchStart = (event: TouchEvent) => {
       if (isWaitlistOpen) {
+        modalTouchYRef.current = event.touches[0]?.clientY ?? null;
         return;
       }
 
@@ -444,6 +551,18 @@ function App() {
     };
 
     const handleTouchMove = (event: TouchEvent) => {
+      if (isWaitlistOpen) {
+        const startY = modalTouchYRef.current;
+        const currentY = event.touches[0]?.clientY ?? startY;
+        const deltaY = startY !== null && currentY !== null ? startY - currentY : 0;
+
+        if (!canScrollTarget(event.target, deltaY)) {
+          event.preventDefault();
+        }
+
+        return;
+      }
+
       if (!isWaitlistOpen) {
         event.preventDefault();
       }
@@ -452,6 +571,7 @@ function App() {
     const handleTouchEnd = (event: TouchEvent) => {
       const startY = touchStartYRef.current;
       touchStartYRef.current = null;
+      modalTouchYRef.current = null;
 
       if (isWaitlistOpen || startY === null) {
         return;
@@ -702,8 +822,9 @@ function App() {
             transition={{ duration: 0.18 }}
           >
             <motion.form
-              className="waitlist-modal"
+              className={`waitlist-modal ${submitStatus === "success" ? "success-modal" : ""}`}
               onSubmit={submitWaitlist}
+              noValidate
               role="dialog"
               aria-modal="true"
               aria-labelledby="waitlist-title"
@@ -718,9 +839,11 @@ function App() {
 
               {submitStatus === "success" ? (
                 <div className="success-state">
-                  <div className="success-mailbox" aria-hidden="true" />
-                  <h2>{text.successTitle}</h2>
-                  <p>{text.successBody}</p>
+                  <h2 id="waitlist-title" lang={language}>
+                    {text.successTitle}
+                  </h2>
+                  <p lang={language}>{text.successBody}</p>
+                  <img src={successImage} alt="" aria-hidden="true" />
                 </div>
               ) : (
                 <>
@@ -777,16 +900,23 @@ function App() {
                   <label className="field-label story-label" htmlFor="plushieStory" lang={language}>
                     {text.storyLabel}
                   </label>
-                  <div className="story-shell">
+                  <div className={`story-shell ${formErrors.plushieStory ? "has-error" : ""}`}>
                     <img className="field-icon book-icon" src={bookIcon} alt="" />
                     <textarea
                       id="plushieStory"
                       name="plushieStory"
                       value={formValues.plushieStory}
                       placeholder={text.storyPlaceholder}
+                      aria-invalid={Boolean(formErrors.plushieStory)}
+                      aria-describedby={formErrors.plushieStory ? "story-error" : undefined}
                       onChange={(event) => updateField("plushieStory", event.target.value)}
                     />
                   </div>
+                  {formErrors.plushieStory && (
+                    <p className="field-error" id="story-error">
+                      {formErrors.plushieStory}
+                    </p>
+                  )}
 
                   <p className="privacy-note">{text.privacy}</p>
                   <button className="submit-button" type="submit" disabled={isSubmitting} lang={language}>
@@ -804,9 +934,9 @@ function App() {
             className="toast-message"
             role="status"
             aria-live="polite"
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
+            exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.18 }}
           >
             {toastMessage}

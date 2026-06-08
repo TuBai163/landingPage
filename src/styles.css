@@ -503,6 +503,7 @@ button {
   display: flex;
   align-items: flex-start;
   justify-content: center;
+  overscroll-behavior: contain;
 }
 
 .waitlist-modal {
@@ -517,6 +518,12 @@ button {
   color: #7a6254;
   box-shadow: 0 28px 70px rgba(63, 52, 44, 0.24);
   padding: 0;
+}
+
+.waitlist-modal.success-modal {
+  width: 410px;
+  height: 404px;
+  margin-top: 130px;
 }
 
 .waitlist-modal h2 {
@@ -597,6 +604,7 @@ button {
 .story-shell {
   position: relative;
   width: 100%;
+  overflow: hidden;
   border: 1.5px solid rgba(156, 137, 123, 0.46);
   border-radius: 18px;
   background: rgba(255, 250, 246, 0.42);
@@ -656,6 +664,7 @@ button {
   top: 10px;
   width: 21px;
   height: 21px;
+  z-index: 4;
 }
 
 .field-shell input,
@@ -668,7 +677,19 @@ button {
   background: transparent;
   color: #80685a;
   font-family: SimSun, "宋体", Georgia, serif;
-  font-size: clamp(17px, 1.579vw, 20px);
+  font-size: 14px;
+}
+
+.field-shell input:-webkit-autofill,
+.field-shell input:-webkit-autofill:hover,
+.field-shell input:-webkit-autofill:focus,
+.story-shell textarea:-webkit-autofill,
+.story-shell textarea:-webkit-autofill:hover,
+.story-shell textarea:-webkit-autofill:focus {
+  -webkit-text-fill-color: #80685a;
+  caret-color: #80685a;
+  box-shadow: 0 0 0 1000px rgba(255, 250, 246, 0.42) inset;
+  transition: background-color 9999s ease-in-out 0s;
 }
 
 .field-shell input {
@@ -688,8 +709,28 @@ button {
 .story-shell textarea {
   height: 100%;
   resize: none;
-  padding: 24px 22px 18px 52px;
+  padding: 8px 20px 14px 52px;
   line-height: 1.42;
+  text-indent: 0;
+  scrollbar-color: rgba(152, 133, 116, 0.58) transparent;
+  scrollbar-width: thin;
+}
+
+.story-shell textarea::-webkit-scrollbar {
+  width: 10px;
+}
+
+.story-shell textarea::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+}
+
+.story-shell textarea::-webkit-scrollbar-thumb {
+  min-height: 48px;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(152, 133, 116, 0.58);
+  background-clip: content-box;
 }
 
 .field-shell input::placeholder,
@@ -717,6 +758,11 @@ button {
 #plushie-error {
   left: 45px;
   top: 263px;
+}
+
+#story-error {
+  left: 45px;
+  top: 435px;
 }
 
 .privacy-note {
@@ -765,44 +811,61 @@ button {
 }
 
 .success-state {
-  display: grid;
-  min-height: 378px;
-  place-items: center;
-  align-content: center;
-  padding: 20px 18px;
+  position: relative;
+  width: 100%;
+  height: 100%;
   text-align: center;
 }
 
 .success-state h2 {
-  margin: 18px 0 14px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 70px;
+  margin: 0;
+  color: #80685a;
+  font-family: SimSun, "宋体", Georgia, serif;
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1;
 }
 
 .success-state p {
-  max-width: 380px;
+  position: absolute;
+  left: 30px;
+  right: 30px;
+  top: 121px;
   margin: 0;
   color: rgba(115, 96, 82, 0.82);
-  font-size: 18px;
-  line-height: 1.7;
+  font-family: SimSun, "宋体", Georgia, serif;
+  font-size: 14px;
+  line-height: 1.35;
 }
 
-.success-mailbox {
-  width: 72px;
-  height: 52px;
-  border: 2px solid rgba(139, 118, 100, 0.72);
-  border-radius: 8px;
-  background:
-    linear-gradient(135deg, transparent 47%, rgba(139, 118, 100, 0.62) 48%, rgba(139, 118, 100, 0.62) 52%, transparent 53%),
-    linear-gradient(225deg, transparent 47%, rgba(139, 118, 100, 0.62) 48%, rgba(139, 118, 100, 0.62) 52%, transparent 53%),
-    #fff8f1;
-  box-shadow: 0 0 28px rgba(126, 226, 220, 0.65);
+.success-state h2:lang(en),
+.success-state p:lang(en) {
+  font-family: "Cormorant Garamond", Cormorant, Garamond, Georgia, serif;
+}
+
+.success-state img {
+  position: absolute;
+  left: 50%;
+  top: 149px;
+  width: 324px;
+  height: 243px;
+  object-fit: contain;
+  transform: translateX(-50%);
 }
 
 .toast-message {
   position: fixed;
   z-index: 120;
-  left: 50%;
-  bottom: 34px;
+  left: 0;
+  right: 0;
+  top: 26px;
+  width: fit-content;
   max-width: min(420px, calc(100vw - 40px));
+  margin: 0 auto;
   padding: 13px 18px;
   border-radius: 8px;
   background: rgba(84, 68, 58, 0.94);
@@ -812,7 +875,6 @@ button {
   line-height: 1.35;
   text-align: center;
   box-shadow: 0 16px 36px rgba(51, 42, 36, 0.24);
-  transform: translateX(-50%);
   pointer-events: none;
 }
 
@@ -1085,7 +1147,7 @@ button {
 
   .field-shell input,
   .story-shell textarea {
-    font-size: 17px;
+    font-size: 14px;
   }
 
   .mail-icon {
@@ -1105,6 +1167,11 @@ button {
     top: 21px;
   }
 
+  .story-shell textarea {
+    padding: 21px 18px 18px 65px;
+    text-indent: 0;
+  }
+
   .field-error {
     position: static;
     margin: 8px 0 -8px 4px;
@@ -1122,9 +1189,16 @@ button {
   }
 
   .toast-message {
-    bottom: 22px;
+    top: 18px;
     max-width: calc(100vw - 28px);
     font-size: 14px;
+  }
+
+  .waitlist-modal.success-modal {
+    width: min(100%, 410px);
+    height: 404px;
+    margin-top: 0;
+    padding: 0;
   }
 }
 
