@@ -548,6 +548,7 @@ button {
 
 .modal-close {
   position: absolute;
+  z-index: 10;
   right: 19px;
   top: 23px;
   width: 25px;
@@ -854,6 +855,7 @@ button {
   width: 324px;
   height: 243px;
   object-fit: contain;
+  pointer-events: none;
   transform: translateX(-50%);
 }
 
