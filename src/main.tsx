@@ -821,10 +821,8 @@ function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
           >
-            <motion.form
+            <motion.div
               className={`waitlist-modal ${submitStatus === "success" ? "success-modal" : ""}`}
-              onSubmit={submitWaitlist}
-              noValidate
               role="dialog"
               aria-modal="true"
               aria-labelledby="waitlist-title"
@@ -833,7 +831,16 @@ function App() {
               exit={{ opacity: 0, y: 10, scale: 0.98 }}
               transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
             >
-              <button className="modal-close" type="button" onClick={closeWaitlist} aria-label="Close waitlist form">
+              <button
+                className="modal-close"
+                type="button"
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  closeWaitlist();
+                }}
+                onClick={closeWaitlist}
+                aria-label="Close waitlist form"
+              >
                 <img src={closeIcon} alt="" />
               </button>
 
@@ -846,7 +853,7 @@ function App() {
                   <img src={successImage} alt="" aria-hidden="true" />
                 </div>
               ) : (
-                <>
+                <form className="waitlist-form" onSubmit={submitWaitlist} noValidate>
                   <h2 id="waitlist-title" lang={language}>
                     {text.modalTitle}
                   </h2>
@@ -922,9 +929,9 @@ function App() {
                   <button className="submit-button" type="submit" disabled={isSubmitting} lang={language}>
                     {isSubmitting ? text.submitting : text.submit}
                   </button>
-                </>
+                </form>
               )}
-            </motion.form>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

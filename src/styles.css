@@ -526,6 +526,10 @@ button {
   margin-top: 130px;
 }
 
+.waitlist-form {
+  display: contents;
+}
+
 .waitlist-modal h2 {
   position: absolute;
   left: 0;
